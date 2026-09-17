@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class MessageDeliveryQueue extends Model
+{
+    use HasFactory;
+
+    protected $table =
+        'message_delivery_queue';
+
+    protected $fillable = [
+        'client_message_id',
+        'sender_id',
+        'receiver_id',
+        'payload',
+        'expires_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'expires_at' => 'datetime',
+        ];
+    }
+}
