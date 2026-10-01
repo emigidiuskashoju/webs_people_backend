@@ -26,15 +26,12 @@ class ContactMatchController extends Controller
             ],
         ]);
 
-        $phoneNumbers =
-            collect(
-                $validated['phone_numbers']
-            )
+        $phoneNumbers = collect(
+            $validated['phone_numbers']
+        )
             ->map(
                 fn ($phone) =>
-                    $this->normalizePhoneNumber(
-                        $phone
-                    )
+                    $this->normalizePhoneNumber($phone)
             )
             ->filter()
             ->unique()
@@ -46,18 +43,28 @@ class ContactMatchController extends Controller
             ]);
         }
 
-        $users =
-            User::query()
-                ->whereIn(
-                    'phone_number',
-                    $phoneNumbers->all()
-                )
-                ->select([
-                    'id',
-                    'name',
-                    'phone_number',
-                ])
-                ->get();
+        $users = User::query()
+            ->whereIn(
+                'phone_number',
+                $phoneNumbers->all()
+            )
+            ->select([
+                'id',
+                'name',
+                'phone_number',
+                'profile_photo_path',
+            ])
+            ->get()
+            ->map(function (User $user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'phone_number' => $user->phone_number,
+                    'profile_photo_url' =>
+                        $this->profilePhotoUrl($user),
+                ];
+            })
+            ->values();
 
         return response()->json([
             'users' => $users,
@@ -67,16 +74,28 @@ class ContactMatchController extends Controller
     private function normalizePhoneNumber(
         string $phoneNumber
     ): ?string {
-        $phoneNumber =
-            preg_replace(
-                '/[\s\-\(\)\.]/',
-                '',
-                trim($phoneNumber)
-            );
+        $phoneNumber = preg_replace(
+            '/[\s\-\(\)\.]/',
+            '',
+            trim($phoneNumber)
+        );
 
         if (!$phoneNumber) {
             return null;
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Convert international 00 prefix
+        |--------------------------------------------------------------------------
+        |
+        | Example:
+        | 00255123456789
+        |
+        | becomes:
+        | +255123456789
+        |
+        */
 
         if (
             str_starts_with(
@@ -92,6 +111,16 @@ class ContactMatchController extends Controller
                 );
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | We require international format
+        |--------------------------------------------------------------------------
+        |
+        | Example:
+        | +255123456789
+        |
+        */
+
         if (
             !str_starts_with(
                 $phoneNumber,
@@ -101,11 +130,10 @@ class ContactMatchController extends Controller
             return null;
         }
 
-        $digits =
-            substr(
-                $phoneNumber,
-                1
-            );
+        $digits = substr(
+            $phoneNumber,
+            1
+        );
 
         if (
             !preg_match(
@@ -117,5 +145,25 @@ class ContactMatchController extends Controller
         }
 
         return '+' . $digits;
+    }
+
+    private function profilePhotoUrl(
+        User $user
+    ): ?string {
+        if (
+            empty(
+                $user->profile_photo_path
+            )
+        ) {
+            return null;
+        }
+
+        return url(
+            '/storage/' .
+            ltrim(
+                $user->profile_photo_path,
+                '/'
+            )
+        );
     }
 }

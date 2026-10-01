@@ -5,26 +5,33 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class PendingMessage extends Model
+class PendingCallEvent extends Model
 {
     use HasFactory;
 
     protected $fillable = [
+        'call_id',
         'sender_id',
         'recipient_id',
-        'client_message_id',
-        'message',
+        'event',
+        'payload',
         'created_at',
         'expires_at',
-        'acknowledged_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'created_at' => 'datetime',
-            'expires_at' => 'datetime',
-            'acknowledged_at' => 'datetime',
+            'payload' =>
+                'array',
+
+            'created_at' =>
+                'datetime',
+
+            'expires_at' =>
+                'datetime',
         ];
     }
+
+    public $timestamps = false;
 }

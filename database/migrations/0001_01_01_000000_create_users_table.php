@@ -13,22 +13,30 @@ return new class extends Migration
 
             $table->string('name', 100);
 
-            $table->string('phone_number', 20)
-                ->unique();
+            $table->string('email')->unique();
 
-            $table->timestamp('phone_verified_at')
-                ->nullable();
+            $table->string('phone_number', 20)->unique();
 
-            $table->string('password');
+            $table->timestamp('email_verified_at')->nullable();
+
+            $table->timestamp('phone_verified_at')->nullable();
+
+            $table->string('password')->nullable();
 
             $table->rememberToken();
+
+            $table->string('profile_photo_path')->nullable();
+
+            $table->string('track_security_password')->nullable();
 
             $table->timestamps();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('phone_number')->primary();
+            $table->string('email')->primary();
+
             $table->string('token');
+
             $table->timestamp('created_at')->nullable();
         });
 
@@ -39,16 +47,13 @@ return new class extends Migration
                 ->nullable()
                 ->index();
 
-            $table->string('ip_address', 45)
-                ->nullable();
+            $table->string('ip_address', 45)->nullable();
 
-            $table->text('user_agent')
-                ->nullable();
+            $table->text('user_agent')->nullable();
 
             $table->longText('payload');
 
-            $table->integer('last_activity')
-                ->index();
+            $table->integer('last_activity')->index();
         });
     }
 

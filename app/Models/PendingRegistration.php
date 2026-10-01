@@ -17,6 +17,7 @@ class PendingRegistration extends Model
         'attempts',
         'code_sent_at',
         'expires_at',
+        'verified_at',
     ];
 
     protected function casts(): array
@@ -24,6 +25,8 @@ class PendingRegistration extends Model
         return [
             'code_sent_at' => 'datetime',
             'expires_at' => 'datetime',
+            'verified_at' => 'datetime',
+            'attempts' => 'integer',
         ];
     }
 }

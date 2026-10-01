@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\PendingMessage;
 use App\Models\PendingReadReceipt;
+use App\Services\FcmPushService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,8 +14,10 @@ class MessageController extends Controller
     /**
      * Accept a message for temporary delivery.
      */
-    public function send(Request $request): JsonResponse
-    {
+    public function send(
+        Request $request,
+        FcmPushService $fcm,
+    ): JsonResponse {
         $validated = $request->validate([
             'recipient_id' => [
                 'required',
@@ -36,9 +39,6 @@ class MessageController extends Controller
 
         $sender = $request->user();
 
-        /*
-         * Prevent sending a message to yourself.
-         */
         if (
             (int) $validated['recipient_id']
             === (int) $sender->id
@@ -49,21 +49,12 @@ class MessageController extends Controller
             ], 422);
         }
 
-        /*
-         * Remove expired messages belonging to this sender.
-         */
         PendingMessage::where(
             'expires_at',
             '<',
-            now()
+            now()->subDays(30)
         )->delete();
 
-        /*
-         * Check whether this message was already accepted.
-         *
-         * This protects against duplicate requests when the
-         * sender retries because of a temporary network problem.
-         */
         $existing = PendingMessage::where(
             'sender_id',
             $sender->id
@@ -78,48 +69,58 @@ class MessageController extends Controller
             return response()->json([
                 'message' =>
                     'Message already accepted.',
-
                 'server_message_id' =>
                     $existing->id,
-
                 'client_message_id' =>
                     $existing->client_message_id,
             ]);
         }
 
-        /*
-         * Create the temporary delivery copy.
-         *
-         * Seven days is the maximum lifetime of an undelivered
-         * message in this first implementation.
-         */
         $pending = PendingMessage::create([
-            'sender_id' =>
-                $sender->id,
-
+            'sender_id' => $sender->id,
             'recipient_id' =>
                 $validated['recipient_id'],
-
             'client_message_id' =>
                 $validated['client_message_id'],
-
-            'message' =>
-                $validated['message'],
-
-            'created_at' =>
-                now(),
-
-            'expires_at' =>
-                now()->addDays(7),
+            'message' => $validated['message'],
+            'created_at' => now(),
+            'expires_at' => now()->addDays(7),
+            'acknowledged_at' => null,
         ]);
+
+        // ------------------------------------------------------------
+        // Push notification to the recipient's devices
+        //
+        // Non-fatal: if FCM fails, the message is still stored
+        // and the client still gets a 201.
+        // ------------------------------------------------------------
+
+        try {
+            $fcm->sendToUser(
+                (int) $validated['recipient_id'],
+                [
+                    'type' => 'new_message',
+                    'conversation_id' => $this->conversationId(
+                        (int) $sender->id,
+                        (int) $validated['recipient_id'],
+                    ),
+                    'sender_id' => (string) $sender->id,
+                    'sender_name' => (string) $sender->name,
+                    'body' => (string) $validated['message'],
+                    'server_message_id' => (string) $pending->id,
+                ],
+                $sender->name,
+                $validated['message'],
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return response()->json([
             'message' =>
                 'Message accepted for delivery.',
-
             'server_message_id' =>
                 $pending->id,
-
             'client_message_id' =>
                 $pending->client_message_id,
         ], 201);
@@ -132,20 +133,15 @@ class MessageController extends Controller
     {
         $user = $request->user();
 
-        /*
-         * Clean up expired messages first.
-         */
         PendingMessage::where(
             'expires_at',
             '<',
-            now()
+            now()->subDays(30)
         )->delete();
 
         $messages = PendingMessage::query()
-            ->where(
-                'recipient_id',
-                $user->id
-            )
+            ->where('recipient_id', $user->id)
+            ->whereNull('acknowledged_at')
             ->orderBy('id')
             ->get();
 
@@ -155,8 +151,7 @@ class MessageController extends Controller
     }
 
     /**
-     * Delete a message after the recipient has successfully
-     * stored it locally.
+     * Mark a message as stored on the recipient's device.
      */
     public function acknowledge(
         Request $request,
@@ -164,9 +159,6 @@ class MessageController extends Controller
     ): JsonResponse {
         $user = $request->user();
 
-        /*
-         * Only the recipient can acknowledge the message.
-         */
         if (
             (int) $message->recipient_id
             !== (int) $user->id
@@ -177,104 +169,114 @@ class MessageController extends Controller
             ], 403);
         }
 
-        $message->delete();
+        if ($message->acknowledged_at === null) {
+            $message->update([
+                'acknowledged_at' => now(),
+            ]);
+        }
 
         return response()->json([
-            'message' =>
-                'Message acknowledged.',
+            'message' => 'Message acknowledged.',
         ]);
     }
 
-    public function markRead(
-    Request $request,
-    PendingMessage $message
-): JsonResponse {
-    $user = $request->user();
-
-    /*
-     * Only the recipient can mark a message
-     * as read.
+    /**
+     * Record that the recipient has read a message.
      */
-    if (
-        (int) $message->recipient_id
-        !== (int) $user->id
-    ) {
+    public function markRead(
+        Request $request,
+        int $messageId
+    ): JsonResponse {
+        $user = $request->user();
+
+        $message = PendingMessage::find($messageId);
+
+        if (!$message) {
+            return response()->json([
+                'message' =>
+                    'Message no longer available; read receipt skipped.',
+            ]);
+        }
+
+        if (
+            (int) $message->recipient_id
+            !== (int) $user->id
+        ) {
+            return response()->json([
+                'message' =>
+                    'You are not allowed to mark this message as read.',
+            ], 403);
+        }
+
+        PendingReadReceipt::firstOrCreate(
+            [
+                'message_id' => $message->id,
+                'reader_id' => $user->id,
+            ],
+            [
+                'sender_id' => $message->sender_id,
+                'created_at' => now(),
+            ]
+        );
+
         return response()->json([
-            'message' =>
-                'You are not allowed to mark this message as read.',
-        ], 403);
+            'message' => 'Message marked as read.',
+        ]);
     }
 
-    /*
-     * The pending message may already have been
-     * acknowledged/deleted from the server.
-     *
-     * In that case there is nothing more to do.
+    /**
+     * Return read receipts waiting for the authenticated sender.
      */
-    PendingReadReceipt::firstOrCreate(
-        [
-            'message_id' =>
-                $message->id,
+    public function pendingReadReceipts(
+        Request $request
+    ): JsonResponse {
+        $user = $request->user();
 
-            'reader_id' =>
-                $user->id,
-        ],
-        [
-            'sender_id' =>
-                $message->sender_id,
-
-            'created_at' =>
-                now(),
-        ]
-    );
-
-    return response()->json([
-        'message' =>
-            'Message marked as read.',
-    ]);
-}
-
-public function pendingReadReceipts(
-    Request $request
-): JsonResponse {
-    $user = $request->user();
-
-    $receipts =
-        PendingReadReceipt::query()
-            ->where(
-                'sender_id',
-                $user->id
-            )
+        $receipts = PendingReadReceipt::query()
+            ->where('sender_id', $user->id)
             ->orderBy('id')
             ->get();
 
-    return response()->json([
-        'receipts' =>
-            $receipts,
-    ]);
-}
-
-public function acknowledgeReadReceipt(
-    Request $request,
-    PendingReadReceipt $receipt
-): JsonResponse {
-    $user = $request->user();
-
-    if (
-        (int) $receipt->sender_id
-        !== (int) $user->id
-    ) {
         return response()->json([
-            'message' =>
-                'You are not allowed to acknowledge this read receipt.',
-        ], 403);
+            'receipts' => $receipts,
+        ]);
     }
 
-    $receipt->delete();
+    /**
+     * Delete a read receipt after the sender's device has
+     * recorded it locally.
+     */
+    public function acknowledgeReadReceipt(
+        Request $request,
+        PendingReadReceipt $receipt
+    ): JsonResponse {
+        $user = $request->user();
 
-    return response()->json([
-        'message' =>
-            'Read receipt acknowledged.',
-    ]);
-}
+        if (
+            (int) $receipt->sender_id
+            !== (int) $user->id
+        ) {
+            return response()->json([
+                'message' =>
+                    'You are not allowed to acknowledge this read receipt.',
+            ], 403);
+        }
+
+        $receipt->delete();
+
+        return response()->json([
+            'message' => 'Read receipt acknowledged.',
+        ]);
+    }
+
+    /**
+     * Build the same conversation id the Flutter app uses:
+     * "<smallerId>_<largerId>".
+     */
+    private function conversationId(int $a, int $b): string
+    {
+        $ids = [$a, $b];
+        sort($ids);
+        return $ids[0] . '_' . $ids[1];
+    }
 }
