@@ -30,7 +30,7 @@ class ContactMatchController extends Controller
             $validated['phone_numbers']
         )
             ->map(
-                fn ($phone) =>
+                fn($phone) =>
                     $this->normalizePhoneNumber($phone)
             )
             ->filter()
@@ -84,76 +84,40 @@ class ContactMatchController extends Controller
             return null;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Convert international 00 prefix
-        |--------------------------------------------------------------------------
-        |
-        | Example:
-        | 00255123456789
-        |
-        | becomes:
-        | +255123456789
-        |
-        */
-
-        if (
-            str_starts_with(
-                $phoneNumber,
-                '00'
-            )
-        ) {
-            $phoneNumber =
-                '+' .
-                substr(
-                    $phoneNumber,
-                    2
-                );
+        // Convert 00 prefix to +
+        if (str_starts_with($phoneNumber, '00')) {
+            $phoneNumber = '+' . substr($phoneNumber, 2);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | We require international format
-        |--------------------------------------------------------------------------
-        |
-        | Example:
-        | +255123456789
-        |
-        */
-
-        if (
-            !str_starts_with(
-                $phoneNumber,
-                '+'
-            )
-        ) {
-            return null;
+        // Local format: 0XXXXXXXXX -> +255XXXXXXXXX
+        if (str_starts_with($phoneNumber, '0')) {
+            $phoneNumber = '+255' . substr($phoneNumber, 1);
         }
 
-        $digits = substr(
-            $phoneNumber,
-            1
-        );
+        // Country code without +: 255XXXXXXXXX -> +255XXXXXXXXX
+        if (!str_starts_with($phoneNumber, '+')) {
+            if (preg_match('/^\d{10,15}$/', $phoneNumber)) {
+                $phoneNumber = '+' . $phoneNumber;
+            } else {
+                return null;
+            }
+        }
 
-        if (
-            !preg_match(
-                '/^\d{8,15}$/',
-                $digits
-            )
-        ) {
+        $digits = substr($phoneNumber, 1);
+
+        if (!preg_match('/^\d{8,15}$/', $digits)) {
             return null;
         }
 
         return '+' . $digits;
     }
-
     private function profilePhotoUrl(
         User $user
     ): ?string {
         if (
             empty(
-                $user->profile_photo_path
-            )
+            $user->profile_photo_path
+        )
         ) {
             return null;
         }
