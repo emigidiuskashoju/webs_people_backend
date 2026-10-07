@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+storage/firebase/service-account.json 
+log.txt 
+today.txt 
+.env 
