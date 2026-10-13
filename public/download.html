@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Download Webs People</title>
+<link rel="icon" type="image/png" href="/assets/app_logo.png">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #1a0033 0%, #2d004d 50%, #4a0066 100%);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .container {
+    max-width: 520px;
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 28px;
+    padding: 48px 32px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .logo {
+    width: 128px;
+    height: 128px;
+    border-radius: 24px;
+    margin: 0 auto 24px;
+    display: block;
+    box-shadow: 0 12px 32px rgba(168,85,199,0.45);
+    object-fit: cover;
+  }
+  h1 {
+    font-size: 30px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .subtitle {
+    font-size: 15px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+  .meta {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 32px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.55);
+    flex-wrap: wrap;
+  }
+  .meta span { display: flex; align-items: center; gap: 6px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #E8B8F0 0%, #A855C7 100%);
+    color: #1a0033;
+    font-size: 17px;
+    font-weight: 700;
+    text-decoration: none;
+    border-radius: 16px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 8px 24px rgba(168,85,199,0.45);
+    margin-bottom: 16px;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(168,85,199,0.6); }
+  .btn:active { transform: translateY(0); }
+  .steps {
+    text-align: left;
+    margin-top: 24px;
+    padding: 20px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: rgba(255,255,255,0.75);
+  }
+  .steps strong {
+    color: #E8B8F0;
+    display: block;
+    margin-bottom: 10px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+  }
+  .steps ol { padding-left: 20px; }
+  .steps li { margin-bottom: 8px; }
+  .note {
+    font-size: 12px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.6;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .note strong { color: rgba(255,255,255,0.7); }
+</style>
+</head>
+<body>
+  <div class="container">
+    <img src="/assets/app_logo.png" alt="Webs People" class="logo">
+    <h1>Webs People</h1>
+    <p class="subtitle">Private messaging, location sharing, and device tracking — all in one app.</p>
+
+    <div class="meta">
+      <span>📦 v1.0.0</span>
+      <span>📱 Android</span>
+      <span>💾 ~90 MB</span>
+    </div>
+
+    <a href="https://github.com/emigidiuskashoju/webs_people/releases/download/v1.0.0/app-release.apk" class="btn" rel="noopener">      ⬇️ Download for Android
+    </a>
+
+    <div class="steps">
+      <strong>How to Install</strong>
+      <ol>
+        <li>Tap the <b>Download</b> button above</li>
+        <li>If Android warns about installing from an unknown source, tap <b>Allow</b> or <b>Settings → Allow from this source</b></li>
+        <li>Open the downloaded file and tap <b>Install</b></li>
+        <li>Launch <b>Webs People</b> and sign up</li>
+      </ol>
+    </div>
+
+    <p class="note">
+      <strong>Note:</strong> This app is distributed outside of Google Play. Android may show a security warning — that is normal. Tap <b>Install anyway</b> to continue.
+    </p>
+  </div>
+</body>
+</html>
