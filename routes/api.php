@@ -297,6 +297,11 @@ Route::prefix('v1')->group(function () {
         );
 
         Route::post(
+            '/location/requests/{requestId}/end',
+            [LocationRequestController::class, 'end']
+        );
+
+        Route::post(
             '/location/requests/{requestId}/location',
             [LocationRequestController::class, 'updateLocation']
         );
