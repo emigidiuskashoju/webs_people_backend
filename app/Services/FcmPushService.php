@@ -18,12 +18,6 @@ class FcmPushService
         $this->messaging = $messaging;
     }
 
-    /**
-     * Send a data + notification message to every device
-     * registered to the given user.
-     *
-     * Used for chat messages.
-     */
     public function sendToUser(
         int $userId,
         array $data,
@@ -35,6 +29,9 @@ class FcmPushService
             ->all();
 
         if (empty($tokens)) {
+            logger()->info('FCM: no tokens registered for user', [
+                'user_id' => $userId,
+            ]);
             return;
         }
 
@@ -68,32 +65,28 @@ class FcmPushService
                     $message->withChangedTarget('token', $token)
                 );
             } catch (Throwable $e) {
-                logger()->warning(
-                    'FCM send failed',
-                    [
+                $error = $e->getMessage();
+
+                if (stripos($error, 'NotRegistered') !== false
+                    || stripos($error, 'Requested entity was not found') !== false
+                ) {
+                    DeviceToken::where('fcm_token', $token)->delete();
+
+                    logger()->info('FCM: removed stale token', [
                         'user_id' => $userId,
-                        'error' => $e->getMessage(),
-                    ]
-                );
+                        'token'   => substr($token, 0, 20) . '...',
+                    ]);
+                    continue;
+                }
+
+                logger()->warning('FCM send failed', [
+                    'user_id' => $userId,
+                    'error'   => $error,
+                ]);
             }
         }
     }
 
-    /**
-     * Send an incoming call push to the given user.
-     *
-     * We send BOTH a notification block and a data block:
-     *
-     *   - The notification block lets Android show a
-     *     heads-up notification while the app is in the
-     *     background or killed.
-     *   - The data block lets the Flutter app rebuild the
-     *     full incoming-call UI when the user taps.
-     *
-     * The notification uses the `webs_people_calls_v2`
-     * channel, which the app creates at startup with max
-     * importance and a custom vibration pattern.
-     */
     public function sendCallPush(
         int $recipientUserId,
         int $callerId,
@@ -110,6 +103,9 @@ class FcmPushService
             ->all();
 
         if (empty($tokens)) {
+            logger()->info('FCM call: no tokens registered', [
+                'user_id' => $recipientUserId,
+            ]);
             return;
         }
 
@@ -156,13 +152,24 @@ class FcmPushService
                     $message->withChangedTarget('token', $token)
                 );
             } catch (Throwable $e) {
-                logger()->warning(
-                    'FCM call push failed',
-                    [
+                $error = $e->getMessage();
+
+                if (stripos($error, 'NotRegistered') !== false
+                    || stripos($error, 'Requested entity was not found') !== false
+                ) {
+                    DeviceToken::where('fcm_token', $token)->delete();
+
+                    logger()->info('FCM call: removed stale token', [
                         'user_id' => $recipientUserId,
-                        'error' => $e->getMessage(),
-                    ]
-                );
+                        'token'   => substr($token, 0, 20) . '...',
+                    ]);
+                    continue;
+                }
+
+                logger()->warning('FCM call push failed', [
+                    'user_id' => $recipientUserId,
+                    'error'   => $error,
+                ]);
             }
         }
     }

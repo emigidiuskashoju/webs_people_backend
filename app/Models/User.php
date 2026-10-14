@@ -26,6 +26,13 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    /**
+     * Fields automatically appended to every JSON representation.
+     */
+    protected $appends = [
+        'profile_photo_url',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -37,6 +44,22 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Full public URL of the user's profile photo.
+     * Returns null if no photo has been uploaded.
+     */
+    public function getProfilePhotoUrlAttribute(): ?string
+    {
+        if (empty($this->profile_photo_path)) {
+            return null;
+        }
+
+        return url(
+            '/storage/' .
+            ltrim($this->profile_photo_path, '/')
+        );
+    }
+
     public function devices(): HasMany
     {
         return $this->hasMany(
@@ -44,3 +67,5 @@ class User extends Authenticatable
         );
     }
 }
+
+
