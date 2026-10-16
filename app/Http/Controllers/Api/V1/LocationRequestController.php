@@ -328,6 +328,53 @@ class LocationRequestController extends Controller
     }
 
     // ============================================================
+    // END (used by Cancel and Complete buttons)
+    // ============================================================
+    //
+    // Ends an active location sharing session. Either the
+    // requester or the owner may call this.
+    //
+    // Both Cancel and Complete set the status to 'denied' so
+    // that clients see the session as ended. The only
+    // difference is the button label in the UI.
+
+    public function end(Request $request, int $requestId)
+    {
+        $userId = $request->user()->id;
+
+        $locationRequest = LocationRequest::where('id', $requestId)
+            ->where(function ($query) use ($userId) {
+                $query
+                    ->where('requester_id', $userId)
+                    ->orWhere('owner_id', $userId);
+            })
+            ->first();
+
+        if (!$locationRequest) {
+            return response()->json([
+                'message' => 'Location request not found.',
+            ], 404);
+        }
+
+        if ($locationRequest->status !== 'accepted') {
+            return response()->json([
+                'message' => 'Location sharing is not active.',
+            ], 422);
+        }
+
+        $locationRequest->update(['status' => 'denied']);
+
+        return response()->json([
+            'message' => 'Location sharing ended.',
+            'request' => $this->requestPayload(
+                $locationRequest
+                    ->fresh()
+                    ->load(['requester', 'owner', 'sharedLocations'])
+            ),
+        ]);
+    }
+
+    // ============================================================
     // UPDATE LOCATION (both parties)
     // ============================================================
     //
