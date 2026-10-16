@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\DeviceLocationController;
 use App\Http\Controllers\Api\FcmTokenController;
 use App\Http\Controllers\Api\LostModeController;
 use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\RecoveryController;
 use App\Http\Controllers\Api\V1\ConnectionController;
 use App\Http\Controllers\Api\V1\CustomRouteController;
@@ -224,6 +225,31 @@ Route::prefix('v1')->group(function () {
         );
     });
 
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | PRESENCE
+    |--------------------------------------------------------------------------
+    */
+
+    Route::middleware('auth:sanctum')->group(function () {
+
+        Route::post(
+            '/presence/heartbeat',
+            [PresenceController::class, 'heartbeat']
+        );
+
+        Route::get(
+            '/presence',
+            [PresenceController::class, 'index']
+        );
+
+        Route::get(
+            '/presence/{userId}',
+            [PresenceController::class, 'show']
+        );
+    });
     /*
     |--------------------------------------------------------------------------
     | CALLS

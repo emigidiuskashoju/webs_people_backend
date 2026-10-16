@@ -8,10 +8,12 @@ use App\Models\PendingReadReceipt;
 use App\Services\FcmPushService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class MessageController extends Controller
 {
+    /**
+     * Accept a message for temporary delivery.
+     */
     public function send(
         Request $request,
         FcmPushService $fcm,
@@ -71,6 +73,8 @@ class MessageController extends Controller
                     $existing->id,
                 'client_message_id' =>
                     $existing->client_message_id,
+                'created_at' =>
+                    $existing->created_at?->toISOString(),
             ]);
         }
 
@@ -85,6 +89,13 @@ class MessageController extends Controller
             'expires_at' => now()->addDays(7),
             'acknowledged_at' => null,
         ]);
+
+        // ------------------------------------------------------------
+        // Push notification to the recipient's devices
+        //
+        // Non-fatal: if FCM fails, the message is still stored
+        // and the client still gets a 201.
+        // ------------------------------------------------------------
 
         try {
             $fcm->sendToUser(
@@ -104,11 +115,7 @@ class MessageController extends Controller
                 $validated['message'],
             );
         } catch (\Throwable $e) {
-            Log::warning('MessageController: FCM push failed', [
-                'sender_id' => $sender->id,
-                'recipient_id' => $validated['recipient_id'],
-                'error' => $e->getMessage(),
-            ]);
+            report($e);
         }
 
         return response()->json([
@@ -118,9 +125,14 @@ class MessageController extends Controller
                 $pending->id,
             'client_message_id' =>
                 $pending->client_message_id,
+            'created_at' =>
+                $pending->created_at?->toISOString(),
         ], 201);
     }
 
+    /**
+     * Return messages waiting for the authenticated user.
+     */
     public function pending(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -142,6 +154,9 @@ class MessageController extends Controller
         ]);
     }
 
+    /**
+     * Mark a message as stored on the recipient's device.
+     */
     public function acknowledge(
         Request $request,
         PendingMessage $message
@@ -169,6 +184,9 @@ class MessageController extends Controller
         ]);
     }
 
+    /**
+     * Record that the recipient has read a message.
+     */
     public function markRead(
         Request $request,
         int $messageId
@@ -210,6 +228,9 @@ class MessageController extends Controller
         ]);
     }
 
+    /**
+     * Return read receipts waiting for the authenticated sender.
+     */
     public function pendingReadReceipts(
         Request $request
     ): JsonResponse {
@@ -225,6 +246,10 @@ class MessageController extends Controller
         ]);
     }
 
+    /**
+     * Delete a read receipt after the sender's device has
+     * recorded it locally.
+     */
     public function acknowledgeReadReceipt(
         Request $request,
         PendingReadReceipt $receipt
@@ -248,6 +273,10 @@ class MessageController extends Controller
         ]);
     }
 
+    /**
+     * Build the same conversation id the Flutter app uses:
+     * "<smallerId>_<largerId>".
+     */
     private function conversationId(int $a, int $b): string
     {
         $ids = [$a, $b];
