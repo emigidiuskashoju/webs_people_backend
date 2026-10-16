@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Models\UserPresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class PresenceController extends Controller
 {
@@ -16,6 +15,9 @@ class PresenceController extends Controller
 
     /** A "typing" signal is valid for this many seconds. */
     private const TYPING_WINDOW_SECONDS = 6;
+
+    /** Upper bound on user_ids per presence request. */
+    private const MAX_USER_IDS_PER_REQUEST = 100;
 
     /**
      * Called by the app every ~25s while running, and immediately
@@ -83,31 +85,45 @@ class PresenceController extends Controller
     }
 
     /**
-     * Return presence for every user the caller has a
-     * conversation with. Used by the chats list.
+     * Return presence for a specific set of user ids.
      *
-     * Conversation partners are derived from the users table:
-     * we simply return presence for every user except the
-     * caller. If your app grows, swap this for a real
-     * "connections" query.
+     * The client passes only the users it actually renders
+     * (for example, the matched contacts shown in the chats
+     * list). This keeps the response small regardless of how
+     * many users exist in the system.
+     *
+     * Query: ?user_ids=3,7,12
+     *
+     * The old "return everyone" behavior has been removed on
+     * purpose. Callers must specify the ids they want.
      */
     public function index(Request $request): JsonResponse
     {
-        $currentUserId = $request->user()->id;
+        $raw = $request->query('user_ids');
 
-        $otherUserIds = User::query()
-            ->where('id', '!=', $currentUserId)
-            ->pluck('id')
-            ->all();
+        $ids = $this->parseUserIds($raw);
+
+        if (empty($ids)) {
+            return response()->json([
+                'presences' => (object) [],
+            ]);
+        }
+
+        if (count($ids) > self::MAX_USER_IDS_PER_REQUEST) {
+            return response()->json([
+                'message' =>
+                    'Too many user ids requested in one call.',
+            ], 422);
+        }
 
         $presences = UserPresence::query()
-            ->whereIn('user_id', $otherUserIds)
+            ->whereIn('user_id', $ids)
             ->get()
             ->keyBy('user_id');
 
         $result = [];
 
-        foreach ($otherUserIds as $userId) {
+        foreach ($ids as $userId) {
             $result[(string) $userId] = $this->payload(
                 $presences->get($userId)
             );
@@ -116,6 +132,36 @@ class PresenceController extends Controller
         return response()->json([
             'presences' => $result,
         ]);
+    }
+
+    /**
+     * Parse the comma-separated user_ids query parameter into
+     * a clean, unique, positive integer array. Silently drops
+     * invalid entries.
+     *
+     * @return int[]
+     */
+    private function parseUserIds(mixed $raw): array
+    {
+        if (!is_string($raw) || $raw === '') {
+            return [];
+        }
+
+        $parts = explode(',', $raw);
+
+        $ids = [];
+
+        foreach ($parts as $part) {
+            $id = (int) trim($part);
+
+            if ($id <= 0) {
+                continue;
+            }
+
+            $ids[$id] = $id;
+        }
+
+        return array_values($ids);
     }
 
     /**
@@ -129,6 +175,7 @@ class PresenceController extends Controller
                 'online' => false,
                 'last_seen_at' => null,
                 'typing' => false,
+                'typing_in_conversation' => null,
             ];
         }
 
