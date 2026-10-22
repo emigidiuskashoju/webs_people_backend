@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AppVersionController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\AuthController;
@@ -429,5 +430,16 @@ Route::prefix('v1')->group(function () {
             '/profile/photo',
             [ProfileController::class, 'removePhoto']
         );
+
+            /*
+    |--------------------------------------------------------------------------
+    | APP VERSION (public — used by the update checker)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/app/version',
+        [AppVersionController::class, 'show']
+    );
     });
 });
