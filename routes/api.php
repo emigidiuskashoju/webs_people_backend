@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\AppVersionController;
 use Illuminate\Support\Facades\Route;
 
@@ -38,7 +39,7 @@ Route::prefix('v1')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | APP VERSION (public — used by the update checker)
+    | APP VERSION & ANNOUNCEMENTS (public)
     |--------------------------------------------------------------------------
     */
 
@@ -46,6 +47,14 @@ Route::prefix('v1')->group(function () {
         '/app/version',
         [AppVersionController::class, 'show']
     );
+
+    Route::get(
+        '/announcements/latest',
+        [AnnouncementController::class, 'latest']
+    );
+
+     Route::post('/places', [\App\Http\Controllers\Api\PlaceController::class, 'store'])->middleware('auth:sanctum');
+    Route::get('/places/{slug}', [\App\Http\Controllers\Api\PlaceController::class, 'show']);
 
     /*
     |--------------------------------------------------------------------------
