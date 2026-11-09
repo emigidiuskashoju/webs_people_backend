@@ -31,3 +31,8 @@ Route::post('/admin/announcements', function (Request $request) {
 
     return back()->with('success', 'Announcement published! It will appear on users phones immediately.');
 });
+
+Route::get('/p/{slug}', function ($slug) {
+    return view('place_redirect', ['slug' => $slug]);
+});
+
