@@ -62,6 +62,7 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/contacts/match', [ContactMatchController::class, 'match']);
+        Route::post('/contacts/lookup', [ContactMatchController::class, 'lookup']);
         
         Route::post('/messages/send', [MessageController::class, 'send']);
         Route::get('/messages/pending', [MessageController::class, 'pending']);

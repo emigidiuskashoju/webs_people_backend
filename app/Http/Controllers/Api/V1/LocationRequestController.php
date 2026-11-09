@@ -10,6 +10,21 @@ use Illuminate\Http\Request;
 
 class LocationRequestController extends Controller
 {
+    /**
+     * How long the other person has to accept a request. A request
+     * stays open at least this long, and longer if the location
+     * code it was made with is still valid.
+     */
+    private const PENDING_MIN_MINUTES = 60;
+
+    /**
+     * How long location sharing lasts once it is ACCEPTED, counted
+     * from the moment of acceptance (not from when the request was
+     * sent). Either person can still end it early with Cancel /
+     * Complete.
+     */
+    private const SHARING_HOURS = 24;
+
     // ============================================================
     // DAILY CODE
     // ============================================================
@@ -145,7 +160,13 @@ class LocationRequestController extends Controller
             'requester_id' => $requester->id,
             'owner_id' => $owner->id,
             'status' => 'pending',
-            'expires_at' => now()->addHour(),
+            // Keep the request open while the code is still valid
+            // (codes last until the end of the day), but never less
+            // than PENDING_MIN_MINUTES.
+            'expires_at' => max(
+                now()->addMinutes(self::PENDING_MIN_MINUTES),
+                $locationCode->expires_at->copy(),
+            ),
         ]);
 
         return response()->json([
@@ -274,6 +295,12 @@ class LocationRequestController extends Controller
 
         $locationRequest->update([
             'status' => 'accepted',
+            // Start a fresh sharing window from the moment of
+            // acceptance. Previously the 1-hour "pending" deadline
+            // set when the request was sent was kept, so sharing
+            // died about an hour after the REQUEST, often while the
+            // users had the app in the background.
+            'expires_at' => now()->addHours(self::SHARING_HOURS),
             // Legacy columns: leave as null. Two-way mode
             // uses the shared_locations table instead.
             'latitude' => null,
