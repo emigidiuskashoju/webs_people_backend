@@ -28,6 +28,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/app/version', [AppVersionController::class, 'show']);
     Route::get('/announcements/latest', [AnnouncementController::class, 'latest']);
 
+    Route::post('/places', [\App\Http\Controllers\Api\PlaceController::class, 'store'])->middleware('auth:sanctum');
+    Route::get('/places/{slug}', [\App\Http\Controllers\Api\PlaceController::class, 'show']);
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
