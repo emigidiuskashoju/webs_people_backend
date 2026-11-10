@@ -121,12 +121,29 @@ class PresenceController extends Controller
             ->get()
             ->keyBy('user_id');
 
+        // A short fingerprint of each user's name + photo. It changes
+        // whenever they change either one, so the app can notice and
+        // reload that contact within one presence poll (~15 s) —
+        // without this endpoint revealing names or photos itself.
+        $profileRevs = User::query()
+            ->whereIn('id', $ids)
+            ->get(['id', 'name', 'profile_photo_path'])
+            ->mapWithKeys(fn (User $u) => [
+                $u->id => substr(
+                    sha1($u->name . '|' . ($u->profile_photo_path ?? '')),
+                    0,
+                    12
+                ),
+            ]);
+
         $result = [];
 
         foreach ($ids as $userId) {
             $result[(string) $userId] = $this->payload(
                 $presences->get($userId)
-            );
+            ) + [
+                'profile_rev' => $profileRevs->get($userId),
+            ];
         }
 
         return response()->json([
