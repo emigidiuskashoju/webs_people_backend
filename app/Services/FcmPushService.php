@@ -49,13 +49,26 @@ class FcmPushService
         }
         $message = $message->withData($stringData);
 
+        $androidNotification = [
+            // Must match the channel the app creates
+            // (NotificationService._messagesChannelId). The old id
+            // 'webs_people_messages_v2' does not exist on phones, so
+            // Android used its plain fallback channel.
+            'channel_id' => 'webs_messages_v2',
+            'sound' => 'default',
+        ];
+
+        // One notification per chat: a new message from the same
+        // person replaces the previous one instead of stacking, and
+        // the app can clear it when the chat is opened.
+        if (!empty($stringData['conversation_id'])) {
+            $androidNotification['tag'] = $stringData['conversation_id'];
+        }
+
         $message = $message->withAndroidConfig(
             AndroidConfig::fromArray([
                 'priority' => 'high',
-                'notification' => [
-                    'channel_id' => 'webs_people_messages_v2',
-                    'sound' => 'default',
-                ],
+                'notification' => $androidNotification,
             ])
         );
 

@@ -22,7 +22,7 @@ class EmailVerificationCodeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your Webs People verification code',
+            subject: 'Your Webs verification code',
         );
     }
 

@@ -170,7 +170,7 @@ class LocationRequestController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Location request sent in Webs People.',
+            'message' => 'Location request sent in Webs.',
             'request' => $this->requestPayload(
                 $locationRequest->load(['requester', 'owner', 'sharedLocations'])
             ),

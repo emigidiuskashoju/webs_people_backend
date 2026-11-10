@@ -567,11 +567,21 @@ class AuthController extends Controller
     private function normalizePhoneNumber(
         string $phoneNumber
     ): string {
-        return preg_replace(
+        $phoneNumber = preg_replace(
             '/\s+/',
             '',
             trim($phoneNumber)
         );
+
+        // People often type the local 0 after picking +255, giving
+        // "+2550712345678". Phone books store that person as
+        // 0712345678 = +255712345678, so the extra 0 made them
+        // impossible to find. Drop it.
+        if (preg_match('/^\+2550(\d{9})$/', $phoneNumber, $m)) {
+            $phoneNumber = '+255' . $m[1];
+        }
+
+        return $phoneNumber;
     }
 
     private function registrationRateLimitKey(

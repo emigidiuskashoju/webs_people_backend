@@ -201,6 +201,16 @@ class ContactMatchController extends Controller
             $phoneNumber = '+255' . substr($phoneNumber, 1);
         }
 
+        // Saved without the 0: 712345678 -> +255712345678
+        if (preg_match('/^[67]\d{8}$/', $phoneNumber)) {
+            $phoneNumber = '+255' . $phoneNumber;
+        }
+
+        // Code plus the local 0: +2550712345678 -> +255712345678
+        if (preg_match('/^\+?2550(\d{9})$/', $phoneNumber, $m)) {
+            $phoneNumber = '+255' . $m[1];
+        }
+
         // Country code without +: 255XXXXXXXXX -> +255XXXXXXXXX
         if (!str_starts_with($phoneNumber, '+')) {
             if (preg_match('/^\d{10,15}$/', $phoneNumber)) {
