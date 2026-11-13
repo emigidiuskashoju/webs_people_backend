@@ -231,6 +231,62 @@ class MessageController extends Controller
     /**
      * Return read receipts waiting for the authenticated sender.
      */
+    /**
+     * Delivery/read status for a batch of the caller's SENT messages,
+     * so the sender's app can show one tick (sent), two grey ticks
+     * (delivered) or two blue ticks (read).
+     */
+    public function statuses(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'message_ids' => ['required', 'array', 'max:300'],
+            'message_ids.*' => ['required', 'integer'],
+        ]);
+
+        $user = $request->user();
+
+        $ids = collect($validated['message_ids'])
+            ->map(fn ($i) => (int) $i)
+            ->unique()
+            ->values();
+
+        // The caller's own messages that are still in the queue.
+        $messages = PendingMessage::query()
+            ->where('sender_id', $user->id)
+            ->whereIn('id', $ids->all())
+            ->get(['id', 'acknowledged_at'])
+            ->keyBy('id');
+
+        // Which of them have a read receipt.
+        $readIds = PendingReadReceipt::query()
+            ->where('sender_id', $user->id)
+            ->whereIn('message_id', $ids->all())
+            ->pluck('message_id')
+            ->map(fn ($i) => (int) $i)
+            ->flip();
+
+        $statuses = [];
+        foreach ($ids as $id) {
+            $msg = $messages->get($id);
+            $read = $readIds->has($id);
+            // Delivered when the recipient has downloaded it (ack), or
+            // read (read implies delivered). If the message is no longer
+            // in the queue it was pulled and cleaned up, so treat it as
+            // delivered too.
+            $delivered = $read
+                || ($msg && $msg->acknowledged_at !== null)
+                || $msg === null;
+
+            $statuses[] = [
+                'id' => $id,
+                'delivered' => $delivered,
+                'read' => $read,
+            ];
+        }
+
+        return response()->json(['statuses' => $statuses]);
+    }
+
     public function pendingReadReceipts(
         Request $request
     ): JsonResponse {

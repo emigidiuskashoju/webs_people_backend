@@ -21,16 +21,21 @@ class ContactMatchController extends Controller
                 'max:5000',
             ],
 
+            // Accept any string; over-long / malformed entries are
+            // dropped below instead of failing the whole request (an
+            // old app could send a bad number and get a 422, which
+            // stopped ALL contacts from loading).
             'phone_numbers.*' => [
-                'required',
+                'nullable',
                 'string',
-                'max:20',
             ],
         ]);
 
         $phoneNumbers = collect(
             $validated['phone_numbers']
         )
+            ->filter(fn ($phone) =>
+                is_string($phone) && strlen($phone) <= 20)
             ->map(
                 fn($phone) =>
                     $this->normalizePhoneNumber($phone)
